@@ -1,19 +1,24 @@
-package com.mobildev.exam.model;
+package com.mobildev.exam.dto;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
-public class Exam {
+public class ExamResponseDTO {
     private int id;
     private String title;
     private String description;
     private int durationMinutes;
-    private LocalDateTime createdAt;
-    private List<Question> questions;
+    private List<QuestionResponseDTO> questions;
 
+    public ExamResponseDTO() {
+    }
 
-    public Exam() {
-
+    // Constructor
+    public ExamResponseDTO(int id, String title, String description, int durationMinutes, List<QuestionResponseDTO> questions) {
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.durationMinutes = durationMinutes;
+        this.questions = questions;
     }
 
     public int getId() {
@@ -48,27 +53,11 @@ public class Exam {
         this.durationMinutes = durationMinutes;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public Exam(int id, String title, String description, int durationMinutes, LocalDateTime createdAt) {
-        this.id = id;
-        this.title = title;
-        this.description = description;
-        this.durationMinutes = durationMinutes;
-        this.createdAt = createdAt;
-    }
-
-    public List<Question> getQuestions() {
+    public List<QuestionResponseDTO> getQuestions() {
         return questions;
     }
 
-    public void setQuestions(List<Question> questions) {
+    public void setQuestions(List<QuestionResponseDTO> questions) {
         this.questions = questions;
     }
 }
