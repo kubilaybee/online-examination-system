@@ -1,33 +1,25 @@
-package com.mobildev.exam.model;
+package com.mobildev.exam.dto;
 
+import com.mobildev.exam.model.QuestionType;
 import java.util.List;
 
-public class Question {
+public class QuestionResponseDTO {
     private int id;
     private int examId;
     private String questionText;
     private QuestionType questionType;
-    private String correctAnswer; // Only use Classic Questions
-    private List<Option> options;
+    private List<OptionResponseDTO> options;
 
-
-    public Question() {
-
+    public QuestionResponseDTO() {
     }
 
-    public Question(int id, int examId, String questionText, QuestionType questionType, String correctAnswer) {
+    // Constructor
+    public QuestionResponseDTO(int id, int examId, String questionText, QuestionType questionType, List<OptionResponseDTO> options) {
         this.id = id;
         this.examId = examId;
         this.questionText = questionText;
         this.questionType = questionType;
-        this.correctAnswer = correctAnswer;
-    }
-
-    public Question(int id, int examId, String questionText, QuestionType questionType) {
-        this.id = id;
-        this.examId = examId;
-        this.questionText = questionText;
-        this.questionType = questionType;
+        this.options = options;
     }
 
     public int getId() {
@@ -62,19 +54,11 @@ public class Question {
         this.questionType = questionType;
     }
 
-    public String getCorrectAnswer() {
-        return correctAnswer;
-    }
-
-    public void setCorrectAnswer(String correctAnswer) {
-        this.correctAnswer = correctAnswer;
-    }
-
-    public List<Option> getOptions() {
+    public List<OptionResponseDTO> getOptions() {
         return options;
     }
 
-    public void setOptions(List<Option> options) {
+    public void setOptions(List<OptionResponseDTO> options) {
         this.options = options;
     }
 }
