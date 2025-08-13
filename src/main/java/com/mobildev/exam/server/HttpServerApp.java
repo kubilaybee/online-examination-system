@@ -24,7 +24,7 @@ public class HttpServerApp {
 
         // define the endpoints
         server.createContext("/login", new LoginHandler());
-        server.createContext("/exams", new JwtAuthHandler(new ExamsHandler(examService)));
+        server.createContext("/exams", new JwtAuthHandler(new ExamsHandler(examService))); // Yeni ExamsHandler kullanıldı
         server.createContext("/submit", new JwtAuthHandler(new SubmitHandler(submitService)));
 
         server.setExecutor(Executors.newFixedThreadPool(10));

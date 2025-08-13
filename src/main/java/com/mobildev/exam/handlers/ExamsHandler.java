@@ -1,6 +1,7 @@
 package com.mobildev.exam.handlers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mobildev.exam.dto.ExamListResponseDTO;
 import com.mobildev.exam.dto.ExamResponseDTO;
 import com.mobildev.exam.service.ExamService;
 import com.mobildev.exam.util.ResponseUtil;
@@ -25,27 +26,52 @@ public class ExamsHandler implements HttpHandler {
             return;
         }
 
-        int examId;
         try {
-            String path = exchange.getRequestURI().getPath();
-            String[] parts = path.split("/");
-            if (parts.length < 3 || !parts[1].equals("exams")) {
-                ResponseUtil.sendResponse(exchange, 400, "Bad Request - Invalid URL format.");
-                return;
+            String uri = exchange.getRequestURI().getPath();
+            String[] pathParts = uri.split("/");
+
+            if (pathParts.length == 2) {
+                handleGetAllExams(exchange);
+            } else if (pathParts.length == 3) {
+                handleGetExamById(exchange, pathParts[2]);
+            } else {
+                ResponseUtil.sendResponse(exchange, 400, "Bad Request");
             }
-            examId = Integer.parseInt(parts[2]);
-        } catch (NumberFormatException e) {
-            ResponseUtil.sendResponse(exchange, 400, "Bad Request - Invalid exam ID.");
-            return;
+
+        } catch (Exception e) {
+            LOGGER.severe("Error in ExamsHandler: " + e.getMessage());
+            ResponseUtil.sendResponse(exchange, 500, "Internal Server Error");
         }
+    }
 
-        ExamResponseDTO examResponse = examService.getExamResponseById(examId);
-
-        if (examResponse == null) {
-            ResponseUtil.sendResponse(exchange, 404, "Exam not found.");
-        } else {
-            String jsonResponse = objectMapper.writeValueAsString(examResponse);
+    private void handleGetAllExams(HttpExchange exchange) throws IOException {
+        try {
+            ExamListResponseDTO examListResponse = examService.getAllExams();
+            String jsonResponse = objectMapper.writeValueAsString(examListResponse);
             ResponseUtil.sendResponse(exchange, 200, jsonResponse);
+        } catch (Exception e) {
+            LOGGER.severe("Error getting all exams: " + e.getMessage());
+            ResponseUtil.sendResponse(exchange, 500, "Internal Server Error");
+        }
+    }
+
+    private void handleGetExamById(HttpExchange exchange, String examIdString) throws IOException {
+        try {
+            int examId = Integer.parseInt(examIdString);
+            ExamResponseDTO examDetail = examService.getExamResponseById(examId);
+
+            if (examDetail != null) {
+                String jsonResponse = objectMapper.writeValueAsString(examDetail);
+                ResponseUtil.sendResponse(exchange, 200, jsonResponse);
+            } else {
+                ResponseUtil.sendResponse(exchange, 404, "Exam Not Found");
+            }
+        } catch (NumberFormatException e) {
+            LOGGER.warning("Invalid exam ID format: " + examIdString);
+            ResponseUtil.sendResponse(exchange, 400, "Invalid Exam ID Format");
+        } catch (Exception e) {
+            LOGGER.severe("Error getting exam details: " + e.getMessage());
+            ResponseUtil.sendResponse(exchange, 500, "Internal Server Error");
         }
     }
 }

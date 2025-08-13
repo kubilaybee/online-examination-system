@@ -1,6 +1,7 @@
 package com.mobildev.exam.service;
 
 import com.mobildev.exam.dao.ExamDAO;
+import com.mobildev.exam.dto.ExamListResponseDTO;
 import com.mobildev.exam.dto.ExamResponseDTO;
 import com.mobildev.exam.dto.OptionResponseDTO;
 import com.mobildev.exam.dto.QuestionResponseDTO;
@@ -10,7 +11,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class ExamService {
     private static final Logger LOGGER = Logger.getLogger(ExamService.class.getName());
@@ -20,72 +24,116 @@ public class ExamService {
         this.examDAO = examDAO;
     }
 
-    public ExamResponseDTO getExamResponseById(int examId) {
+    /**
+     * Retrieves a list of all exams, mapping the raw database data to a DTO list.
+     *
+     * @return An ExamListResponseDTO containing a list of ExamResponseDTOs.
+     */
+    public ExamListResponseDTO getAllExams() {
+        LOGGER.log(Level.INFO, "Fetching all exams from the database.");
         try {
-            List<Map<String, Object>> rawData = examDAO.getExamDetails(examId);
-            if (rawData.isEmpty()) {
+            List<Map<String, Object>> examRows = examDAO.getAllExams();
+
+            // Using a stream to map the raw data into DTOs for a more concise and readable approach.
+            List<ExamResponseDTO> exams = examRows.stream()
+                    .map(row -> new ExamResponseDTO(
+                            (int) row.get("exam_id"),
+                            (String) row.get("title"),
+                            (String) row.get("description"),
+                            (int) row.get("duration_minutes"),
+                            new ArrayList<>()
+                    ))
+                    .collect(Collectors.toList());
+
+            LOGGER.log(Level.INFO, "Successfully fetched {0} exams.", exams.size());
+            return new ExamListResponseDTO(exams);
+
+        } catch (SQLException e) {
+            // Log the full stack trace for better debugging.
+            LOGGER.log(Level.SEVERE, "Database exception while fetching all exams.", e);
+            return new ExamListResponseDTO(new ArrayList<>());
+        }
+    }
+
+    /**
+     * Retrieves a specific exam and its details (questions, options) by ID.
+     * The method reconstructs the hierarchical data structure from the flat database result.
+     *
+     * @param examId The ID of the exam to retrieve.
+     * @return An ExamResponseDTO with nested questions and options, or null if the exam is not found.
+     */
+    public ExamResponseDTO getExamResponseById(int examId) {
+        LOGGER.log(Level.INFO, "Fetching details for exam with ID: {0}", examId);
+        try {
+            List<Map<String, Object>> examDetailsRows = examDAO.getExamDetails(examId);
+
+            if (examDetailsRows.isEmpty()) {
+                LOGGER.log(Level.WARNING, "No exam found with ID: {0}", examId);
                 return null;
             }
 
-            Map<Integer, ExamResponseDTO> examMap = new HashMap<>();
+            // Using maps to efficiently track and reconstruct the nested object hierarchy.
+            // This avoids nested loops and improves performance for larger datasets.
+            Map<Integer, QuestionResponseDTO> questionMap = new HashMap<>();
+            ExamResponseDTO exam = null;
 
-            for (Map<String, Object> row : rawData) {
-                int currentExamId = (int) row.get("exam_id");
-
-                if (!examMap.containsKey(currentExamId)) {
-                    ExamResponseDTO exam = new ExamResponseDTO(
-                            currentExamId,
+            for (Map<String, Object> row : examDetailsRows) {
+                // Initialize the exam DTO from the first row only.
+                if (Objects.isNull(exam)) {
+                    exam = new ExamResponseDTO(
+                            (int) row.get("exam_id"),
                             (String) row.get("title"),
                             (String) row.get("description"),
                             (int) row.get("duration_minutes"),
                             new ArrayList<>()
                     );
-                    examMap.put(currentExamId, exam);
                 }
 
-                int questionId = (int) row.get("question_id");
-
-                if (questionId == 0) continue;
-
-                ExamResponseDTO currentExam = examMap.get(currentExamId);
-                QuestionResponseDTO currentQuestion = null;
-
-                for (QuestionResponseDTO q : currentExam.getQuestions()) {
-                    if (q.getId() == questionId) {
-                        currentQuestion = q;
-                        break;
-                    }
+                Integer questionId = (Integer) row.get("question_id");
+                // A LEFT JOIN can return nulls, so we must check.
+                if (questionId == null) {
+                    continue;
                 }
 
-                if (currentQuestion == null) {
+                QuestionResponseDTO question;
+                // Check if the question is already in our map.
+                if (questionMap.containsKey(questionId)) {
+                    question = questionMap.get(questionId);
+                } else {
+                    // If not, create a new QuestionResponseDTO and add it to the map and the exam list.
                     QuestionType questionType = QuestionType.valueOf((String) row.get("question_type"));
-                    currentQuestion = new QuestionResponseDTO(
+                    question = new QuestionResponseDTO(
                             questionId,
-                            currentExamId,
+                            (int) row.get("exam_id"),
                             (String) row.get("question_text"),
                             questionType,
                             new ArrayList<>()
                     );
-                    currentExam.getQuestions().add(currentQuestion);
+                    questionMap.put(questionId, question);
+                    // Add the new question to the exam's question list.
+                    exam.getQuestions().add(question);
+
                 }
 
                 Integer optionId = (Integer) row.get("option_id");
-                if (optionId != null && optionId != 0) {
+                if (Objects.nonNull(optionId)) {
                     OptionResponseDTO option = new OptionResponseDTO(
                             optionId,
                             questionId,
                             (String) row.get("option_text")
                     );
-                    currentQuestion.getOptions().add(option);
+                    question.getOptions().add(option);
                 }
             }
-            return examMap.values().iterator().next();
+
+            LOGGER.log(Level.INFO, "Successfully mapped exam with ID: {0}", examId);
+            return exam;
 
         } catch (SQLException e) {
-            LOGGER.severe("Database exception: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Database exception while fetching exam details for ID: " + examId, e);
             return null;
         } catch (IllegalArgumentException e) {
-            LOGGER.severe("Invalid Question Type: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Invalid question type encountered for exam ID: " + examId, e);
             return null;
         }
     }
